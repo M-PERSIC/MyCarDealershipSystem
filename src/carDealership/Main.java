@@ -5,6 +5,7 @@ import java.util.Scanner;
 import javax.swing.JFrame;
 import javax.swing.SwingUtilities;
 
+import persistance.DBManager;
 import persistance.DealershipLayer;
 
 import java.io.*;
