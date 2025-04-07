@@ -20,8 +20,19 @@ import java.sql.SQLException;
  */
 public class DBManager {
 
+	/**
+	 * Singleton instance of the DBManager
+	 */
 	private static DBManager m_dbManager;
+	
+	/**
+	 * Path to the SQLite database file
+	 */
 	private String m_dbPath;
+	
+	/**
+	 * Active database connection
+	 */
 	private Connection m_connection;
 
 	/**

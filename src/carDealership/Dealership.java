@@ -26,13 +26,46 @@ import java.util.List;
  */
 public class Dealership implements Serializable {
     private static final long serialVersionUID = 1L;
+    
+    /**
+     * The name of the dealership
+     */
     private String name;
+    
+    /**
+     * The physical location of the dealership
+     */
     private String location;
+    
+    /**
+     * Number of vehicles currently in inventory
+     */
     private int nv;
+    
+    /**
+     * Number of sales completed by the dealership
+     */
     private int ns;
+    
+    /**
+     * Array containing all vehicles in inventory
+     */
     private Vehicle[] inventory;
+    
+    /**
+     * Array containing all sales transaction records
+     */
     private Sale[] sales;
+    
+    /**
+     * Counter for assigning unique IDs to vehicles
+     */
     private int nextId;
+    
+    /**
+     * Database layer for persisting dealership data
+     * Marked transient to prevent serialization
+     */
     private transient DealershipLayer m_dealershipLayer;
 
     /**

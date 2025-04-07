@@ -19,10 +19,25 @@ import java.sql.SQLException;
  */
 public class DealershipLayer implements Serializable {
 	private static final long serialVersionUID = 1L;
+	
+	/**
+	 * The name of the dealership
+	 */
 	private String m_name;
+	
+	/**
+	 * The physical location of the dealership
+	 */
 	private String m_location;
+	
+	/**
+	 * The maximum inventory capacity of the dealership
+	 */
 	private int m_capacity;
 
+	/**
+	 * Unique identifier for the dealership in the database
+	 */
 	private int dealershipId;
 
 	/**

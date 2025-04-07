@@ -22,7 +22,16 @@ import java.sql.SQLException;
  * @since 1.8
  */
 public class Main {
+	/**
+	 * Scanner for reading user input from the console
+	 * Used across various menu methods for user interaction
+	 */
 	public static Scanner input = new Scanner(System.in);
+	
+	/**
+	 * Central dealership instance managed by the application
+	 * Contains inventory, sales history, and business logic
+	 */
 	public static Dealership m_dealership;
 
 	/**
