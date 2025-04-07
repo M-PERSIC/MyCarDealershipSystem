@@ -31,11 +31,35 @@ import java.time.LocalDate;
  */
 public class LoginFrame extends JFrame {
     private static final long serialVersionUID = 1L;
+    
+    /**
+     * Text field for entering username
+     */
     private JTextField usernameField;
+    
+    /**
+     * Password field for secure password entry
+     */
     private JPasswordField passwordField;
+    
+    /**
+     * Button to submit login credentials
+     */
     private JButton loginButton;
+    
+    /**
+     * Label for displaying login status messages
+     */
     private JLabel statusLabel;
+    
+    /**
+     * Reference to the dealership being managed
+     */
     private Dealership dealership;
+    
+    /**
+     * Button for initiating password reset process
+     */
     private JButton forgotPasswordButton;
 
 

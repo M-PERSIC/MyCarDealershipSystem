@@ -28,9 +28,25 @@ import java.awt.Toolkit;
 public class FirstLaunchPage extends JFrame {
 
 	private static final long serialVersionUID = 1L;
+	
+	/**
+	 * Main panel container for the launch page
+	 */
 	private JPanel contentPane;
+	
+	/**
+	 * Text field for the dealership name
+	 */
 	private JTextField textField;
+	
+	/**
+	 * Text field for the inventory capacity
+	 */
 	private JTextField textField_1;
+	
+	/**
+	 * Text field for the dealership location
+	 */
 	private JTextField textField_2;
 
 	/**

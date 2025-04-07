@@ -212,10 +212,10 @@ public class Dealership implements Serializable {
     }
 
     /**
-     * Count vehicles within a specified budget
+     * Count the number of cars within a specified budget
      *
-     * @param budget - the maximum price for vehicles
-     * @return the number of vehicles within the budget
+     * @param budget - the maximum price for cars
+     * @return the number of cars within the budget
      */
     public int carBudget(double budget) {
         int total = 0; // declare the variable "total" here
@@ -384,6 +384,13 @@ public class Dealership implements Serializable {
         db.runUpdate(query, user.password, user.name, user.email, user.phone, user.isActive ? 1 : 0, user.getId());
     }
 
+    /**
+     * Add a password reset request for a user
+     * Creates a record in the database for tracking password reset requests
+     *
+     * @param user - the user requesting a password reset
+     * @throws SQLException if a database access error occurs
+     */
     public void addPasswordResetRequest(User user) throws SQLException {
                 DBManager db = DBManager.getInstance();
                 db.runInsert("INSERT INTO password_reset_requests (username, request_date) VALUES (?, ?)",
