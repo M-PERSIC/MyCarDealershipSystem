@@ -1,83 +1,76 @@
-Fork of https://github.com/mohanad-hafez/car-dealership-system for educational purposes.
+# Car Dealership Management System
 
-You will need the JDBC SQLite connector.
-If you use Eclipse, your can just download https://repo1.maven.org/maven2/org/xerial/sqlite-jdbc/3.47.2.0/sqlite-jdbc-3.47.2.0.jar and copy it at the root of the project: the Eclipse project is already configured to use this library.
+This project is a fork of [Car Dealership System](https://github.com/mohanad-hafez/car-dealership-system.git), adapted and enhanced for educational purposes.
 
-Otherwise import the jar file using your IDE.
-
-
-# Car Dealership System
-
-This repository contains the second phase of the **Car Dealership System**, a Java project developed for the CSC 113 course during the second semester of 1445. This phase enhances the program by handling exceptions, using files for data storage, and providing a graphical user interface (GUI) using Java Swing components.
+A comprehensive Java application for managing vehicle inventory, sales, and user accounts in a car dealership.
 
 ## Project Overview
 
-The Car Dealership System simulates the management of a car dealership, allowing users to perform various operations such as adding, removing, selling, and editing vehicles within the dealership's inventory. The system also maintains a sales history to track all vehicle transactions.
+The Car Dealership Management System is a Java-based application that provides a complete solution for dealership operations. It features a user-friendly GUI, robust data persistence using SQLite, and a multi-user role-based access control system for secure dealership management.
+
+## Features
+
+- **User Authentication & Authorization**
+  - Role-based access control (Admin, Manager, Salesperson)
+  - Account lockout protection for system security
+  - Password management and reset functionality
+  
+- **Inventory Management**
+  - Add, edit, and remove vehicles (cars and motorcycles)
+  - Display complete inventory with filtering options
+  - Search vehicles by make, model, year, and price range
+  
+- **Sales Processing**
+  - Record and track vehicle sales transactions
+  - Maintain comprehensive sales history
+  - Customer information management
+  
+- **Administration Tools**
+  - User account management
+  - Dealership information configuration
 
 ## Project Structure
 
-The project is structured into multiple Java classes, including:
+- **Core Classes**
+  - `Vehicle`: Abstract base class for all vehicles
+  - `Car`: Extends Vehicle with car-specific attributes
+  - `Motorcycle`: Extends Vehicle with motorcycle-specific attributes
+  - `User`: Abstract base class for all user types
+  - `Admin`, `Manager`, `Salesperson`: User role implementations
+  - `Dealership`: Core business logic for dealership operations
+  - `Sale`: Transaction record for vehicle sales
 
-- **Vehicle**: An abstract class representing a generic vehicle with common attributes.
-- **Car**: A subclass of Vehicle, representing a car with additional attributes.
-- **Motorcycle**: Another subclass of Vehicle, representing a motorcycle with specific attributes.
-- **Dealership**: The main class handling dealership operations.
-- **Sale**: A class representing a sale transaction.
-- **Main**: The entry point of the program containing the main menu and user interaction functionalities.
-- **Frame**: A class implementing the GUI for user interaction.
-- **VehicleMenu**: A class providing GUI forms for adding vehicles.
-- **FirstLaunchPage**: A class for the initial launch GUI to set up dealership information.
+- **UI Components**
+  - `Frame`: Main application window
+  - `LoginFrame`: Authentication interface
+  - `FirstLaunchPage`: Initial setup wizard
+  - `VehicleMenu`: Vehicle management interface
+  
+- **Persistence Layer**
+  - `DBManager`: SQLite database connection management
+  - `DealershipLayer`: Data access for dealership operations
 
-## Functionality
+## Installation
 
-The system provides the following functionalities:
+### Prerequisites
+- Java Development Kit (JDK) 17 or higher recommended
+- SQLite JDBC driver (included in the `libs` directory)
 
-- Displaying all vehicles in the inventory.
-- Adding new vehicles (cars or motorcycles) to the inventory.
-- Selling vehicles to customers and maintaining a sales history.
-- Removing vehicles from the inventory.
-- Editing vehicle information.
-- Searching for cars by type.
-- Finding cars within a specified budget.
-
-## Exception Handling
-
-### User Defined Exceptions
-- **IllegalCapacityException**: An unchecked exception used to handle invalid input for inventory capacity. It is thrown when the user inputs a capacity that is not within the valid range (1-100).
-
-### Checked Exceptions
-- Checked exceptions were handled when dealing with files for saving and loading data. Methods that interact with files are declared to throw IOException, and appropriate try-catch blocks are used to handle potential file-related exceptions.
-
-### Unchecked Exceptions
-- **NumberFormatException**: An unchecked exception used to handle invalid input for inventory capacity in the new launch page. It is thrown when the user inputs a non-numeric value for inventory capacity.
-
-## File Handling
-
-Files are used for saving and loading data using Java's data stream (ObjectInputStream and ObjectOutputStream). The entire Dealership object is serialized and stored in a binary file named "save.data".
-
-## Graphical User Interface (GUI)
-
-The GUI is implemented using Java Swing components, including JFrame, JButton, JLabel, JTextField, JPanel, JMenuBar, JMenuItem, and JTextArea. The GUI provides an intuitive interface for users to interact with the Car Dealership System.
-
-## Usage
-
-Before running the program, ensure you have Java Development Kit (JDK) installed on your system. Then, follow these steps to compile and execute the Car Dealership System:
-
-1. **Compile the Program**: Open your command-line interface, navigate to the project directory containing the source files, and execute the following command to compile the Java files:
-
-    ```bash
-    javac carDealership/*.java
-    ```
-
-    This command will compile all Java files in the `carDealership` package.
-
-2. **Run the Program**: After successful compilation, execute the following command to run the Main class:
-
-    ```bash
-    java carDealership.Main
-    ```
-
-    This command will start the program and display the main menu for interacting with the Car Dealership System.
+### Setup
+1. Clone the repository
+2. Ensure the SQLite JDBC driver is in the classpath
+3. Compile the application:
+   ```bash
+   javac -cp libs/sqlite-jdbc-3.49.1.0.jar -d bin src/carDealership/*.java src/persistance/*.java
+   ```
+4. Run the application:
+   ```bash
+   java -cp bin:libs/sqlite-jdbc-3.49.1.0.jar carDealership.Main
+   ```
+   On Windows use:
+   ```bash
+   java -cp bin;libs/sqlite-jdbc-3.49.1.0.jar carDealership.Main
+   ```
 
 ## Team Members
 
@@ -94,6 +87,7 @@ With input from:
 - Bao Tran Nguyen
 
 Based on the work of previous members:
+
 - [Mohanad Hafez](https://github.com/mohanad-hafez)
 - [Faris Al Zahrani](https://github.com/nxrzs)
 - [Hisham Saydawi](https://github.com/xAGS1)
