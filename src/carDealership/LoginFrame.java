@@ -408,12 +408,31 @@ public class LoginFrame extends JFrame {
         private void initializeUI() {
             JLabel welcomeLabel = new JLabel("Welcome " + user.getName() + "!" + " - Admin");
             welcomeLabel.setBounds(20, 10, 300, 25);
-            add(welcomeLabel); 
+            add(welcomeLabel);
+            
+            // Add test mode indicator if in test mode
+            if (Main.isTestMode) {
+                JLabel testModeLabel = new JLabel("TEST MODE - Changes will not be saved");
+                testModeLabel.setFont(new Font("Arial", Font.BOLD, 14));
+                testModeLabel.setForeground(Color.RED);
+                testModeLabel.setBounds(350, 10, 400, 25);
+                add(testModeLabel);
+                
+                // Add red border around the entire frame to indicate test mode
+                getRootPane().setBorder(BorderFactory.createLineBorder(Color.RED, 5));
+            }
         
             // Create menu bar
             menuBar = new JMenuBar();
             fileMenu = new JMenu("File");
             saveItem = new JMenuItem("Save");
+            
+            // Disable save functionality when in test mode
+            if (Main.isTestMode) {
+                saveItem.setEnabled(false);
+                saveItem.setToolTipText("Save is disabled in test mode");
+            }
+            
             deleteDealershipItem = new JMenuItem("Delete Dealership");
             fileMenu.add(saveItem);
             fileMenu.add(deleteDealershipItem);
@@ -502,6 +521,17 @@ public class LoginFrame extends JFrame {
             dealershipInfoButton.addActionListener(this);
             add(dealershipInfoButton);
             xPos += spacing;
+            
+            // Create test mode button as the last button in the row
+            final JButton testModeButton = new JButton(Main.isTestMode ? "Exit Test Mode" : "Enter Test Mode");
+            setButtonStyle(testModeButton, Main.isTestMode ? "#FF0000" : "#009600", xPos, yPos, 150, buttonHeight);
+            testModeButton.setForeground(Color.WHITE);
+            testModeButton.setFont(new Font("Arial", Font.BOLD, 12));
+            testModeButton.addActionListener(e -> {
+                toggleTestMode();
+                // Button will be recreated when dashboard refreshes
+            });
+            add(testModeButton);
         
             // Add action listeners for menu items
             saveItem.addActionListener(this);
@@ -1119,6 +1149,21 @@ public class LoginFrame extends JFrame {
         
             if (confirm == JOptionPane.YES_OPTION) {
                 System.out.println("Logging out...");
+                
+                // If in test mode, prompt to exit test mode before logging out
+                if (Main.isTestMode) {
+                    int exitTestMode = JOptionPane.showConfirmDialog(
+                        this, 
+                        "You are currently in test mode. All changes will be discarded.\nDo you want to exit test mode?", 
+                        "Exit Test Mode",
+                        JOptionPane.YES_NO_OPTION
+                    );
+                    
+                    if (exitTestMode == JOptionPane.YES_OPTION) {
+                        Main.exitTestMode();
+                    }
+                }
+                
                 dispose(); // Close the current dashboard
         
                 SwingUtilities.invokeLater(() -> {
@@ -1126,6 +1171,77 @@ public class LoginFrame extends JFrame {
                     loginPage.setVisible(true);
                 });
             }
+        }
+        
+        /**
+         * Toggle between test mode and normal mode
+         * In test mode, all changes are discarded on exit
+         */
+        private void toggleTestMode() {
+            if (Main.isTestMode) {
+                // Currently in test mode, prompt user to exit
+                int confirm = JOptionPane.showConfirmDialog(
+                    this,
+                    "Exit test mode? All changes made in test mode will be discarded.",
+                    "Exit Test Mode",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE
+                );
+                
+                if (confirm == JOptionPane.YES_OPTION) {
+                    // Exit test mode
+                    if (Main.exitTestMode()) {
+                        // Refresh the dashboard to reflect normal mode
+                        JOptionPane.showMessageDialog(
+                            this,
+                            "Test mode exited successfully.\nAll changes made in test mode have been discarded.",
+                            "Test Mode",
+                            JOptionPane.INFORMATION_MESSAGE
+                        );
+                        
+                        // Restart the dashboard to return to normal mode
+                        refreshDashboard();
+                    }
+                }
+            } else {
+                // Currently in normal mode, prompt user to enter test mode
+                int confirm = JOptionPane.showConfirmDialog(
+                    this,
+                    "Enter test mode?\n\nIn test mode:\n- All changes are temporary\n- Nothing will be saved to disk\n- All changes will be discarded when you exit test mode or close the application",
+                    "Enter Test Mode",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.INFORMATION_MESSAGE
+                );
+                
+                if (confirm == JOptionPane.YES_OPTION) {
+                    // Enter test mode
+                    if (Main.enterTestMode()) {
+                        // Refresh the dashboard to reflect test mode
+                        JOptionPane.showMessageDialog(
+                            this,
+                            "Test mode activated successfully.\nAll changes will be temporary and discarded on exit.",
+                            "Test Mode",
+                            JOptionPane.INFORMATION_MESSAGE
+                        );
+                        
+                        // Restart the dashboard in test mode
+                        refreshDashboard();
+                    }
+                }
+            }
+        }
+        
+        /**
+         * Refresh the dashboard to reflect current mode (test or normal)
+         * Recreates the dashboard with current settings
+         */
+        private void refreshDashboard() {
+            dispose(); // Close current dashboard
+            
+            // Create new dashboard with current user and dealership
+            SwingUtilities.invokeLater(() -> {
+                new AdminDashboard(user, dealership).setVisible(true);
+            });
         }
     }
 

@@ -33,6 +33,12 @@ public class Main {
 	 * Contains inventory, sales history, and business logic
 	 */
 	public static Dealership m_dealership;
+	
+	/**
+	 * Flag indicating whether the application is running in test mode
+	 * In test mode, changes are not saved and data is discarded on exit
+	 */
+	public static boolean isTestMode = false;
 
 	/**
 	 * Main entry point for the Car Dealership application
@@ -446,10 +452,17 @@ public class Main {
 	/**
 	 * Save the current dealership state to a file
 	 * Persists the dealership object to save.data file
+	 * Does nothing if in test mode
 	 * 
 	 * @throws IOException if an I/O error occurs during saving
 	 */
 	public static void save() throws IOException {
+		// Skip saving if in test mode
+		if (isTestMode) {
+			System.out.println("In test mode - changes are not being saved to disk");
+			return;
+		}
+		
 		File saveFile = new File("save.data");
 		FileOutputStream outFileStream = null;
 		try {
@@ -468,5 +481,62 @@ public class Main {
 
 		outObjStream.writeObject(m_dealership);
 		outObjStream.close();
+		System.out.println("Dealership data saved to disk");
+	}
+	
+	/**
+	 * Enter test mode
+	 * Creates a temporary database environment that is discarded on exit
+	 * 
+	 * @return true if successfully entered test mode, false otherwise
+	 */
+	public static boolean enterTestMode() {
+		if (isTestMode) {
+			System.out.println("Already in test mode");
+			return false;
+		}
+		
+		try {
+			// Put database in test mode
+			DBManager dbManager = DBManager.getInstance();
+			dbManager.enterTestMode();
+			
+			// Set application test mode flag
+			isTestMode = true;
+			System.out.println("Test mode activated - all changes will be discarded on exit");
+			return true;
+		} catch (SQLException e) {
+			System.err.println("Error entering test mode: " + e.getMessage());
+			e.printStackTrace();
+			return false;
+		}
+	}
+	
+	/**
+	 * Exit test mode
+	 * Discards all changes made in test mode
+	 * 
+	 * @return true if successfully exited test mode, false otherwise
+	 */
+	public static boolean exitTestMode() {
+		if (!isTestMode) {
+			System.out.println("Not in test mode");
+			return false;
+		}
+		
+		try {
+			// Exit database test mode
+			DBManager dbManager = DBManager.getInstance();
+			dbManager.exitTestMode();
+			
+			// Reset application test mode flag
+			isTestMode = false;
+			System.out.println("Test mode deactivated - all changes have been discarded");
+			return true;
+		} catch (SQLException e) {
+			System.err.println("Error exiting test mode: " + e.getMessage());
+			e.printStackTrace();
+			return false;
+		}
 	}
 }

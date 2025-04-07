@@ -247,9 +247,22 @@ public class Frame extends JFrame implements ActionListener {
 
 		if (e.getSource() == save) {
 			try {
-				Main.save();
+				// Check if in test mode
+				if (Main.isTestMode) {
+					JOptionPane.showMessageDialog(null, 
+						"Cannot save changes while in test mode.\nAll changes will be discarded when test mode is exited.", 
+						"Test Mode Active", 
+						JOptionPane.WARNING_MESSAGE);
+				} else {
+					Main.save();
+					JOptionPane.showMessageDialog(null, "Dealership data saved successfully!", 
+						"Save Successful", JOptionPane.INFORMATION_MESSAGE);
+				}
 			} catch (IOException e1) {
-				// TODO Auto-generated catch block
+				JOptionPane.showMessageDialog(null, 
+					"Error saving dealership data: " + e1.getMessage(), 
+					"Save Error", 
+					JOptionPane.ERROR_MESSAGE);
 				e1.printStackTrace();
 			}
 
