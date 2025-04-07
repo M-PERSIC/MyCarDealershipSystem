@@ -79,20 +79,19 @@ Before running the program, ensure you have Java Development Kit (JDK) installed
 
     This command will start the program and display the main menu for interacting with the Car Dealership System.
 
-## Sample Run
-
-Below is a sample run of the program:
-
-
-## UML
-![Car Dealership UML Diagram](https://github.com/mohanad-hafez/car-dealership-system/assets/160021417/d538a3fc-6123-4bc2-b69b-5c4d9ed0b3cc)
-
-
-
 ## Team Members
 
+Code contributions from:
+
+- Nazim Chaib Cherif-Baza (nbazc)
+- [Andrea Delgado Anderson](https://github.com/andremagda)
 - [Ronika Patel](https://github.com/RonikaP)
 - [Michael Persico](https://github.com/M-PERSIC)
+
+With input from:
+
+- Grace Pan
+- Bao Tran Nguyen
 
 Based on the work of previous members:
 - [Mohanad Hafez](https://github.com/mohanad-hafez)
