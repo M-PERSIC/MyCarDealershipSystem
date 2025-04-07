@@ -21,17 +21,67 @@ import java.util.stream.Collectors;
  * @since 1.8
  */
 public abstract class User {
+    /**
+     * Unique identifier for the user
+     */
     protected int id;
+    
+    /**
+     * Username used for login
+     */
     protected String username;
+    
+    /**
+     * User's password
+     */
     protected String password;
+    
+    /**
+     * User's full name
+     */
     protected String name;
+    
+    /**
+     * User's email address
+     */
     protected String email;
+    
+    /**
+     * User's phone number
+     */
     protected String phone;
+    
+    /**
+     * User's role in the system (Admin, Manager, or Salesperson)
+     */
     protected String role;
+    
+    /**
+     * Whether the user account is active
+     * When false, the user cannot log in (account is locked)
+     */
     protected boolean isActive;
+    
+    /**
+     * The date when the user joined the system
+     */
     protected String joinDate;
+    
+    /**
+     * Whether the password is temporary and requires changing on next login
+     */
     protected boolean isTempPassword;
-    protected Map<String, Boolean> permissions; // Dynamic permissions
+    
+    /**
+     * Map of user permissions with permission names as keys and boolean values
+     */
+    protected Map<String, Boolean> permissions;
+    
+    /**
+     * Counter for failed login attempts
+     * Used for account lockout after 3 failed attempts
+     */
+    protected int failedAttempts;
     
     /**
      * Constructor for the User class
@@ -61,6 +111,7 @@ public abstract class User {
         this.joinDate = joinDate;
         this.isTempPassword = isTempPassword;
         this.permissions = new HashMap<>();
+        this.failedAttempts = 0;
         loadPermissions();
     }
 
@@ -177,6 +228,54 @@ public abstract class User {
      * @return the date when the user joined the system
      */
     public String getJoinDate() { return joinDate; }
+    
+    /**
+     * Get the number of failed login attempts for this user
+     *
+     * @return the number of failed login attempts
+     */
+    public int getFailedAttempts() { return failedAttempts; }
+    
+    /**
+     * Reset the failed login attempts counter to zero
+     * Updates both the local object and the database
+     *
+     * @throws SQLException if a database error occurs
+     */
+    public void resetFailedAttempts() throws SQLException {
+        this.failedAttempts = 0;
+        DBManager db = DBManager.getInstance();
+        db.runUpdate("UPDATE users SET failed_attempts = 0 WHERE user_id = ?", this.id);
+    }
+    
+    /**
+     * Increment the failed login attempts counter
+     * If threshold reached for non-admin users, locks the account
+     * Updates both the local object and the database
+     *
+     * @throws SQLException if a database error occurs
+     */
+    public void incrementFailedAttempts() throws SQLException {
+        this.failedAttempts++;
+        DBManager db = DBManager.getInstance();
+        db.runUpdate("UPDATE users SET failed_attempts = ? WHERE user_id = ?", 
+                    this.failedAttempts, this.id);
+        
+        // If threshold reached for non-admin, lock account and request password reset
+        if (this.failedAttempts >= 3 && !this.role.equals("Admin")) {
+            setActive(false); // Deactivate account
+            
+            try {
+                // Use the existing password reset request system
+                Dealership dealership = Main.m_dealership;
+                if (dealership != null) {
+                    dealership.addPasswordResetRequest(this);
+                }
+            } catch (Exception e) {
+                System.err.println("Error adding password reset request: " + e.getMessage());
+            }
+        }
+    }
     
     /**
      * Check if the user has a temporary password
@@ -331,20 +430,33 @@ class Admin extends User {
     }
 
     /**
-     * Reset a user's password
+     * Reset a user's password and unlock their account if it was locked
      * Sets a new temporary password for the specified user
+     * Resets failed login attempts counter and reactivates the account
      *
      * @param user - the user whose password to reset
      * @param newPassword - the new temporary password to set
      * @return true if the password was successfully reset, false otherwise
      * @throws Exception if a database error occurs
      */
-    public boolean resetPassword(User var1, String var2) throws Exception {
-        if (var1 != null && var1.isActive()) {
-            var1.setPassword(var2); // Set the new password in the User object
+    public boolean resetPassword(User user, String newPassword) throws Exception {
+        if (user != null) {
+            user.setPassword(newPassword); // Set the new password in the User object
+            
+            // Also reset failed attempts and activate the account
             DBManager db = DBManager.getInstance();
-            String query = "UPDATE users SET password = '" + var2 + "', is_temp_password = 1 WHERE user_id = " + var1.getId();
-            db.runUpdate(query); // Execute the update query
+            String query = "UPDATE users SET password = ?, is_temp_password = 1, failed_attempts = 0, is_active = 1 " +
+                           "WHERE user_id = ?";
+            db.runUpdate(query, newPassword, user.getId());
+            
+            // Update the user object state to match the DB changes
+            try {
+                user.resetFailedAttempts();
+                user.setActive(true);
+            } catch (SQLException e) {
+                System.err.println("Error updating user state after password reset: " + e.getMessage());
+            }
+            
             return true;
         } else {
             return false;

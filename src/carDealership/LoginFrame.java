@@ -265,15 +265,41 @@ public class LoginFrame extends JFrame {
     /**
      * Authenticate the user based on provided credentials
      * Handles temporary password changes and redirects to appropriate dashboards
+     * Implements account lockout after 3 failed login attempts for non-admin users
+     * Admin accounts are never locked regardless of failed attempts
      */
     private void authenticateUser() {
         String username = usernameField.getText();
         String password = new String(passwordField.getPassword());
-        // Add your login authentication logic here
+        
         try {
             User user = loadUser(username);
-            if (user != null && user.checkPassword(password) && user.isActive()) {
-                // Login successful, check if user needs to change password
+            if (user == null) {
+                statusLabel.setText("Username not found");
+                return;
+            }
+            
+            // Skip lockout for Admin accounts
+            if (!(user instanceof Admin)) {
+                // Check if account is active (not locked)
+                if (!user.isActive()) {
+                    JOptionPane.showMessageDialog(this, 
+                        "This account has been blocked due to too many failed login attempts.\n" +
+                        "A password reset request has been sent to the administrator.\n" +
+                        "Please contact an administrator to reset your password.",
+                        "Account Blocked", JOptionPane.WARNING_MESSAGE);
+                    statusLabel.setText("Account blocked. Contact administrator.");
+                    return;
+                }
+            }
+            
+            // Authentication check
+            if (user.checkPassword(password)) {
+                // Successful login
+                if (!(user instanceof Admin)) {
+                    user.resetFailedAttempts(); // Reset counter on successful login
+                }
+                
                 if (user.isTempPassword()) {
                     forcePasswordChange(user);
                 } else {
@@ -281,19 +307,34 @@ public class LoginFrame extends JFrame {
                     loginSuccessful(user);
                 }
             } else {
-                // Login failed, display error message
-                if (user != null && !user.isActive()) {
-                    System.out.println("Your account is inactive. Please contact an administrator.");
+                // Failed login - only track for non-Admin accounts
+                if (!(user instanceof Admin)) {
+                    user.incrementFailedAttempts();
+                    
+                    if (user.getFailedAttempts() >= 3) {
+                        // Account has been blocked
+                        JOptionPane.showMessageDialog(this, 
+                            "Your account has been blocked due to too many failed attempts.\n" +
+                            "A password reset request has been sent to the administrator.\n" +
+                            "Please contact an administrator to unlock your account.",
+                            "Account Blocked", JOptionPane.WARNING_MESSAGE);
+                        statusLabel.setText("Account blocked. Password reset request sent to admin.");
+                    } else {
+                        // Show remaining attempts
+                        statusLabel.setText("Invalid credentials. Attempts remaining: " + 
+                                          (3 - user.getFailedAttempts()));
+                    }
                 } else {
-                    System.out.println("Login failed");
+                    // Admin login failure (no lockout)
+                    statusLabel.setText("Invalid credentials");
                 }
             }
         } catch (SQLException e) {
             // Handle SQLException
-            System.out.println("A SQL error occurred: " + e.getMessage());
+            statusLabel.setText("A database error occurred: " + e.getMessage());
         } catch (Exception e) {
             // Handle other exceptions
-            System.out.println("An error occurred: " + e.getMessage());
+            statusLabel.setText("An error occurred: " + e.getMessage());
         }
     }
 
@@ -973,6 +1014,8 @@ public class LoginFrame extends JFrame {
                 
         /**
          * Manage password reset requests
+         * Shows pending password reset requests and allows admin to reset passwords
+         * For account lockout feature: indicates when a reset is for a locked account
          *
          * @throws SQLException if a database access error occurs
          * @throws Exception for other errors
@@ -1003,12 +1046,25 @@ public class LoginFrame extends JFrame {
             if (username != null) {
                 User targetUser = User.loadUser(username);
                 if (targetUser != null && passwordResetRequests.stream().anyMatch(u -> u.getUsername().equals(username))) {
-                    int confirm = JOptionPane.showConfirmDialog(this, "Reset password for " + targetUser.getName() + "?\n(An email will be sent.)",
+                    String confirmMessage = "Reset password for " + targetUser.getName();
+                    
+                    // Check if this is a blocked account (for the new account lockout feature)
+                    if (!targetUser.isActive() && targetUser.getFailedAttempts() >= 3) {
+                        confirmMessage += "\n\nNOTE: This account was blocked due to too many failed login attempts. " +
+                                         "Resetting the password will unlock the account.";
+                    } else {
+                        confirmMessage += "\n(An email will be sent.)";
+                    }
+                    
+                    int confirm = JOptionPane.showConfirmDialog(this, confirmMessage,
                             "Confirm Reset", JOptionPane.YES_NO_OPTION);
+                    
                     if (confirm == JOptionPane.YES_OPTION) {
                         String newPassword = "reset" + System.currentTimeMillis();
                         ((Admin) user).resetPassword(targetUser, newPassword);
-                        JOptionPane.showMessageDialog(this, "Password reset for " + username + ". New password: " + newPassword + "\nEmail sent to " + targetUser.getEmail());
+                        JOptionPane.showMessageDialog(this, "Password reset for " + username + ". New password: " + newPassword + 
+                                                     "\nEmail sent to " + targetUser.getEmail() + 
+                                                     (targetUser.getFailedAttempts() >= 3 ? "\nAccount has been unlocked." : ""));
                     }
                 } else {
                     JOptionPane.showMessageDialog(this, "No reset request found for " + username);
