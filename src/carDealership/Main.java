@@ -37,6 +37,16 @@ public class Main {
 	 */
 	public static void main(String args[]) throws IOException, ClassNotFoundException, SQLException {
 		try {
+			// Add a shutdown hook to reset failed password attempts when application exits
+			Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+				try {
+					// Reset all failed attempts on application exit
+					resetAllFailedAttempts();
+				} catch (Exception e) {
+					System.err.println("Error in shutdown hook: " + e.getMessage());
+				}
+			}));
+			
 			var dealershipLayer = new DealershipLayer();
 			if (!dealershipLayer.existsAndSet()) {
 				SwingUtilities.invokeLater(() -> {
@@ -459,5 +469,36 @@ public class Main {
 
 		outObjStream.writeObject(m_dealership);
 		outObjStream.close();
+	}
+	
+	/**
+	 * Resets the failed attempt counters for all users in the database
+	 * Called when the application exits to ensure users start with a clean slate
+	 * next time they login
+	 * 
+	 * @throws SQLException if a database error occurs
+	 */
+	private static void resetAllFailedAttempts() throws SQLException {
+		try {
+			System.out.println("Resetting all failed login attempts...");
+			persistance.DBManager db = persistance.DBManager.getInstance();
+			
+			// Reset failed_attempts counter but don't change locked status
+			// This way, accounts that were manually locked stay locked
+			db.runUpdate("UPDATE users SET failed_attempts = 0");
+			
+			// Also clear any password reset requests that might be in the database
+			try {
+				db.runUpdate("DELETE FROM password_reset_requests");
+			} catch (SQLException e) {
+				// This might fail if the table doesn't exist, which is OK
+				System.out.println("Note: Could not clear password reset requests: " + e.getMessage());
+			}
+			
+			System.out.println("Successfully reset all failed login attempts.");
+		} catch (Exception e) {
+			System.err.println("Error resetting failed attempts: " + e.getMessage());
+			throw e;
+		}
 	}
 }

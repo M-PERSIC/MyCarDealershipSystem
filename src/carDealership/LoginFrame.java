@@ -96,49 +96,13 @@ public class LoginFrame extends JFrame {
 
 
     private void handleForgotPassword() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.add(new JLabel("Did you forget your password? Send a request to the admin."));
-        panel.add(new JLabel("Enter your username:"));
-    
-        // Add a smaller text field for username input
-        JTextField usernameInput = new JTextField();
-        usernameInput.setPreferredSize(new Dimension(100, 25)); // Smaller square field
-        panel.add(usernameInput);
-    
-        int choice = JOptionPane.showOptionDialog(this,
-            panel,
-            "Forgot Password",
-            JOptionPane.OK_CANCEL_OPTION,
-            JOptionPane.QUESTION_MESSAGE,
-            null,
-            null,
-            null);
-    
-        if (choice == JOptionPane.OK_OPTION) {
-            String username = usernameInput.getText().trim();
-            if (!username.isEmpty()) {
-                try {
-                    User user = User.loadUser(username);
-                    if (user != null) {
-                        if (user.isActive()) {
-                            dealership.addPasswordResetRequest(user);
-                            JOptionPane.showMessageDialog(this, "Password reset request sent to admin.");
-                        } else {
-                            JOptionPane.showMessageDialog(this, "Your account is inactive. Please contact an administrator.");
-                        }
-                    } else {
-                        JOptionPane.showMessageDialog(this, "User not found.");
-                    }
-                } catch (SQLException e) {
-                    JOptionPane.showMessageDialog(this, "A database error occurred: " + e.getMessage());
-                } catch (Exception e) {
-                    JOptionPane.showMessageDialog(this, "An error occurred: " + e.getMessage());
-                }
-            } else {
-                JOptionPane.showMessageDialog(this, "Username cannot be empty!");
-            }
-        }
+        // For security improvement, we're removing the forgot password feature
+        // When an account is blocked, only admins can unlock it
+        JOptionPane.showMessageDialog(this, 
+            "Account password reset is only available through an administrator.\n" +
+            "Please contact your system administrator for assistance.", 
+            "Password Reset", 
+            JOptionPane.INFORMATION_MESSAGE);
     }
 
 
@@ -332,16 +296,42 @@ public class LoginFrame extends JFrame {
                 return;
             }
             
-            // Check if account is active (non-admin users only)
-            if (!(user instanceof Admin) && !user.isActive()) {
-                statusLabel.setText("Account is inactive. Contact an administrator.");
+            // Always check the database for account status to ensure we have the latest
+            DBManager db = DBManager.getInstance();
+            ResultSet checkActive = db.runQuery("SELECT is_active FROM users WHERE user_id = ?", user.getId());
+            boolean isAccountActive = true;
+            if (checkActive.next()) {
+                isAccountActive = checkActive.getInt("is_active") == 1;
+            }
+            
+            // Check if account is active (non-admin users only) - use result directly from database
+            if (!(user instanceof Admin) && !isAccountActive) {
+                System.err.println("DEBUG: BLOCKED LOGIN ATTEMPT - Account is locked for user: " + user.getUsername());
+                statusLabel.setText("Account is locked. Contact an administrator.");
                 statusLabel.setForeground(Color.RED);
+                
+                // Show the account locked dialog
+                JOptionPane.showMessageDialog(this, 
+                    "Your account has been locked due to too many failed attempts.\n" +
+                    "Please contact an administrator to unlock your account.",
+                    "Account Locked", JOptionPane.WARNING_MESSAGE);
+                
                 return;
             }
             
+            // Also update our in-memory value to match database
+            user.setActive(isAccountActive);
+            
             // Verify password
             if (user.checkPassword(password)) {
-                // Login successful, check if user needs to change password
+                // Login successful, reset failed attempts counter if any
+                try {
+                    user.resetFailedAttempts();
+                } catch (SQLException e) {
+                    System.err.println("Error resetting failed attempts: " + e.getMessage());
+                }
+                
+                // Check if user needs to change password
                 if (user.isTempPassword()) {
                     forcePasswordChange(user);
                 } else {
@@ -351,9 +341,50 @@ public class LoginFrame extends JFrame {
                     loginSuccessful(user);
                 }
             } else {
-                // Incorrect password
-                statusLabel.setText("Invalid password");
-                statusLabel.setForeground(Color.RED);
+                // Incorrect password - increment failed attempts counter
+                try {
+                    // Admins are immune to account locking
+                    if (!(user instanceof Admin)) {
+                        boolean wasLocked = user.incrementFailedAttempts();
+                        
+                        // Get real-time count from the database to be absolutely sure
+                        ResultSet rs = db.runQuery("SELECT failed_attempts FROM users WHERE user_id = ?", user.getId());
+                        int currentAttempts = 0;
+                        if (rs.next()) {
+                            currentAttempts = rs.getInt("failed_attempts");
+                        }
+                        
+                        System.err.println("DEBUG: User " + user.getUsername() + 
+                                         " has " + currentAttempts + " failed attempts according to DB");
+                    
+                        if (currentAttempts >= 3) {
+                            // Account has been blocked - make extra sure it's marked as inactive in the database
+                            db.runUpdate("UPDATE users SET is_active = 0 WHERE user_id = ?", user.getId());
+                            user.setActive(false);
+                            
+                            statusLabel.setText("Account locked due to too many failed attempts. Contact an administrator.");
+                            
+                            // Show dialog when account is locked 
+                            JOptionPane.showMessageDialog(this, 
+                                "Your account has been locked due to too many failed attempts.\n" +
+                                "Please contact an administrator to unlock your account.",
+                                "Account Locked", JOptionPane.WARNING_MESSAGE);
+                        } else {
+                            // Show remaining attempts
+                            int remainingAttempts = 3 - currentAttempts;
+                            statusLabel.setText("Invalid password. " + remainingAttempts + 
+                                              " attempt" + (remainingAttempts == 1 ? "" : "s") + " remaining.");
+                        }
+                    } else {
+                        statusLabel.setText("Invalid password");
+                    }
+                    statusLabel.setForeground(Color.RED);
+                } catch (SQLException e) {
+                    // If we can't track attempts, just show generic message
+                    statusLabel.setText("Invalid password");
+                    statusLabel.setForeground(Color.RED);
+                    System.err.println("Error tracking failed attempts: " + e.getMessage());
+                }
             }
         } catch (SQLException e) {
             // Handle SQLException
@@ -876,11 +907,23 @@ public class LoginFrame extends JFrame {
             if (username == null) return;
             User targetUser = User.loadUser(username);
             if (targetUser != null) {
-                targetUser.setActive(!targetUser.isActive()); // Toggle the active status
+                boolean newActiveStatus = !targetUser.isActive();
+                targetUser.setActive(newActiveStatus); // Toggle the active status
+                
+                // If activating a previously locked account, reset failed attempts
+                if (newActiveStatus) {
+                    targetUser.resetFailedAttempts();
+                    System.out.println("DEBUG: Reset failed attempts for user: " + username);
+                }
+                
                 System.out.println("After toggle: isActive = " + targetUser.isActive());
                 dealership.updateUser(targetUser);
                 
-                JOptionPane.showMessageDialog(this, "User " + username + " is now " + (targetUser.isActive() ? "active" : "inactive"));
+                String message = "User " + username + " is now " + (newActiveStatus ? "active" : "inactive");
+                if (newActiveStatus) {
+                    message += " and login attempts have been reset";
+                }
+                JOptionPane.showMessageDialog(this, message);
             } else {
                 JOptionPane.showMessageDialog(this, "User not found!");
             }

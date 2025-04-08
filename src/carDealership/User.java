@@ -34,6 +34,12 @@ public abstract class User {
     protected Map<String, Boolean> permissions; // Dynamic permissions
     
     /**
+     * Counter for failed login attempts
+     * Used for account lockout after 3 failed attempts
+     */
+    protected int failedAttempts;
+    
+    /**
      * Constructor for the User class
      * Creates a user with the specified attributes
      *
@@ -61,6 +67,7 @@ public abstract class User {
         this.joinDate = joinDate;
         this.isTempPassword = isTempPassword;
         this.permissions = new HashMap<>();
+        this.failedAttempts = 0;
         loadPermissions();
     }
 
@@ -117,10 +124,11 @@ public abstract class User {
      * @throws Exception if a validation error occurs
      */
     public boolean checkPassword(String passwordAttempt) throws Exception {
-        System.out.println("Stored password: " + this.password);
-        System.out.println("Attempted password: " + passwordAttempt);
-        // Trim both passwords to avoid whitespace issues
-        return this.password.trim().equals(passwordAttempt.trim());
+        System.out.println("DEBUG: Stored password: '" + this.password + "'");
+        System.out.println("DEBUG: Attempted password: '" + passwordAttempt + "'");
+        boolean isMatch = this.password.trim().equals(passwordAttempt);
+        System.out.println("DEBUG: Password match: " + isMatch);
+        return isMatch;
     }
 
     /**
@@ -178,6 +186,92 @@ public abstract class User {
      * @return the date when the user joined the system
      */
     public String getJoinDate() { return joinDate; }
+    
+    /**
+     * Get the number of failed login attempts for this user
+     *
+     * @return the number of failed login attempts
+     */
+    public int getFailedAttempts() { return failedAttempts; }
+    
+    /**
+     * Reset the failed login attempts counter to zero
+     * Updates both the local object and the database
+     *
+     * @throws SQLException if a database error occurs
+     */
+    /**
+     * Reset the failed login attempts counter to zero
+     * Updates both the local object and the database
+     * This should be called when reactivating a locked account
+     * 
+     * @throws SQLException if a database error occurs
+     */
+    public void resetFailedAttempts() throws SQLException {
+        this.failedAttempts = 0;
+        DBManager db = DBManager.getInstance();
+        db.runUpdate("UPDATE users SET failed_attempts = 0 WHERE user_id = ?", this.id);
+        System.out.println("DEBUG: Failed attempts reset to 0 for user ID " + this.id + " (" + this.username + ")");
+    }
+    
+    /**
+     * Increment the failed login attempts counter
+     * If threshold reached for non-admin users, locks the account
+     * Updates both the local object and the database
+     *
+     * @return true if the account was just locked, false otherwise
+     * @throws SQLException if a database error occurs
+     */
+    public boolean incrementFailedAttempts() throws SQLException {
+        // Directly use atomic SQL to increment and check all in one transaction
+        DBManager db = DBManager.getInstance();
+        
+        // Check if we should lock this account (only for non-admins)
+        boolean isAdmin = "Admin".equals(this.role);
+        if (!isAdmin) {
+            // First check current attempts in database to avoid race conditions
+            ResultSet rs = db.runQuery("SELECT failed_attempts FROM users WHERE user_id = ?", this.id);
+            int currentAttempts = 0;
+            if (rs.next()) {
+                currentAttempts = rs.getInt("failed_attempts");
+            }
+            
+            // Increment attempts
+            currentAttempts++;
+            this.failedAttempts = currentAttempts;
+            
+            // Update database
+            db.runUpdate("UPDATE users SET failed_attempts = ? WHERE user_id = ?", 
+                        currentAttempts, this.id);
+            
+            // Log for debugging
+            System.err.println("DEBUG: Failed attempt for user " + this.username + 
+                              ": now at " + currentAttempts + " attempts");
+            
+            // If this attempt puts us at 3, lock the account
+            if (currentAttempts >= 3) {
+                // Deactivate account
+                db.runUpdate("UPDATE users SET is_active = 0 WHERE user_id = ?", this.id);
+                this.isActive = false;
+                
+                // Make sure these messages always show up for debugging
+                System.err.println("*******************************************");
+                System.err.println("DEBUG: ACCOUNT LOCKED for user: " + this.username);
+                System.err.println("DEBUG: Failed attempts count: " + currentAttempts);
+                System.err.println("DEBUG: Account active status: " + this.isActive);
+                System.err.println("*******************************************");
+                
+                // Return true to indicate account was just locked
+                return true;
+            }
+        } else {
+            // Log admin attempt
+            System.err.println("DEBUG: Failed attempt for ADMIN " + this.username + 
+                              " (not incrementing counter)");
+        }
+        
+        return false;
+    }
     
     /**
      * Check if the user has a temporary password
@@ -340,12 +434,24 @@ class Admin extends User {
      * @return true if the password was successfully reset, false otherwise
      * @throws Exception if a database error occurs
      */
-    public boolean resetPassword(User var1, String var2) throws Exception {
-        if (var1 != null && var1.isActive()) {
-            var1.setPassword(var2); // Set the new password in the User object
+    public boolean resetPassword(User user, String newPassword) throws Exception {
+        if (user != null) {
+            user.setPassword(newPassword); // Set the new password in the User object
+            
+            // Also reset failed attempts and activate the account
             DBManager db = DBManager.getInstance();
-            String query = "UPDATE users SET password = '" + var2 + "', is_temp_password = 1 WHERE user_id = " + var1.getId();
-            db.runUpdate(query); // Execute the update query
+            String query = "UPDATE users SET password = ?, is_temp_password = 1, failed_attempts = 0, is_active = 1 " +
+                           "WHERE user_id = ?";
+            db.runUpdate(query, newPassword, user.getId());
+            
+            // Update the user object state to match the DB changes
+            try {
+                user.resetFailedAttempts();
+                user.setActive(true);
+            } catch (SQLException e) {
+                System.err.println("Error updating user state after password reset: " + e.getMessage());
+            }
+            
             return true;
         } else {
             return false;
