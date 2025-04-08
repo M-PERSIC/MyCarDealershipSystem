@@ -37,64 +37,11 @@ public class DBManager {
 	 * @throws SQLException if a database access error occurs
 	 */
 	private DBManager() throws SQLException {
-		// Enhanced debugging for database path resolution
-		System.out.println("===== Database Path Resolution Debug =====");
-		System.out.println("OS: " + System.getProperty("os.name"));
-		System.out.println("Working directory: " + System.getProperty("user.dir"));
+		// Use the local database file instead of home directory
+		m_dbPath = "dealership.sqlite3";
 		
-		// Try multiple path resolution strategies
-		String relativePath = "dealership.sqlite3";
-		File relativeFile = new File(relativePath);
-		
-		// Strategy 1: Current working directory + filename
-		File currentDirFile = new File(System.getProperty("user.dir"), relativePath);
-		
-		// Strategy 2: Absolute path of relative file
-		File absoluteFile = relativeFile.getAbsoluteFile();
-		
-		// Strategy 3: Canonical path (resolves symbolic links)
-		File canonicalFile = null;
-		try {
-			canonicalFile = relativeFile.getCanonicalFile();
-		} catch (IOException e) {
-			System.out.println("Warning: Could not get canonical path: " + e.getMessage());
-			canonicalFile = absoluteFile; // Fall back to absolute path
-		}
-		
-		// Display all paths for debugging
-		System.out.println("Relative path: " + relativePath);
-		System.out.println("Absolute path: " + absoluteFile.getAbsolutePath());
-		System.out.println("Path from user.dir: " + currentDirFile.getAbsolutePath());
-		if (canonicalFile != null) {
-			System.out.println("Canonical path: " + canonicalFile.getAbsolutePath());
-		}
-		
-		// Check file existence for each path
-		System.out.println("Relative file exists: " + relativeFile.exists());
-		System.out.println("Absolute file exists: " + absoluteFile.exists());
-		System.out.println("user.dir file exists: " + currentDirFile.exists());
-		if (canonicalFile != null) {
-			System.out.println("Canonical file exists: " + canonicalFile.exists());
-		}
-		
-		// Select the best path
-		if (currentDirFile.exists()) {
-			m_dbPath = currentDirFile.getAbsolutePath();
-			System.out.println("Using user.dir path because file exists there");
-		} else if (absoluteFile.exists()) {
-			m_dbPath = absoluteFile.getAbsolutePath();
-			System.out.println("Using absolute path because file exists there");
-		} else if (canonicalFile != null && canonicalFile.exists()) {
-			m_dbPath = canonicalFile.getAbsolutePath();
-			System.out.println("Using canonical path because file exists there");
-		} else {
-			// If no file exists, prefer the most robust path
-			m_dbPath = currentDirFile.getAbsolutePath();
-			System.out.println("No existing file found. Using user.dir path");
-		}
-		
-		System.out.println("Selected database path: " + m_dbPath);
-		System.out.println("===== End Path Resolution Debug =====");
+		// Print the absolute path for debugging
+		System.out.println("Database path: " + new File(m_dbPath).getAbsolutePath());
 
 		initDB();
 	}
@@ -260,63 +207,16 @@ public class DBManager {
 	 * @throws SQLException if a database access error occurs
 	 */
 	private void initDB() throws SQLException {
-		System.out.println("===== Database Initialization Debug =====");
-		
-		// Detailed check for file existence
-		File dbFile = new File(m_dbPath);
-		boolean fileExists = dbFile.exists();
-		boolean mustCreateTables = !fileExists;
-		
-		System.out.println("DB file check: " + m_dbPath);
-		System.out.println("File exists: " + fileExists);
-		System.out.println("File readable: " + (fileExists ? dbFile.canRead() : "N/A"));
-		System.out.println("File writable: " + (fileExists ? dbFile.canWrite() : "N/A"));
-		System.out.println("File size: " + (fileExists ? dbFile.length() + " bytes" : "N/A"));
-		System.out.println("Must create tables: " + mustCreateTables);
-		
-		// Try to get a directory listing to see if we're looking in the right place
-		File parentDir = dbFile.getParentFile();
-		if (parentDir == null) {
-			parentDir = new File(".");
-		}
-		
-		System.out.println("Parent directory: " + parentDir.getAbsolutePath());
-		System.out.println("Directory exists: " + parentDir.exists());
-		System.out.println("Directory listing:");
-		
-		File[] files = parentDir.listFiles();
-		if (files != null) {
-			for (File f : files) {
-				if (f.getName().endsWith(".sqlite3")) {
-					System.out.println(" - " + f.getName() + " (" + f.length() + " bytes)");
-				}
-			}
-		} else {
-			System.out.println("Could not list directory contents");
-		}
-		
-		// Connection with detailed error handling
-		String url = "jdbc:sqlite:" + m_dbPath;
-		System.out.println("Connection URL: " + url);
-		
+		var dbFile = new File(m_dbPath);
+		var mustCreateTables = !dbFile.exists();
+
+		var url = "jdbc:sqlite:" + m_dbPath;
 		try {
 			m_connection = DriverManager.getConnection(url);
 			System.out.println("Connection to SQLite has been established.");
 			m_connection.setAutoCommit(false);
-			
-			// Test if we can actually query the database
-			try {
-				var meta = m_connection.getMetaData();
-				System.out.println("Database product: " + meta.getDatabaseProductName());
-				System.out.println("Database version: " + meta.getDatabaseProductVersion());
-			} catch (SQLException e) {
-				System.out.println("Warning: Connected but couldn't get metadata: " + e.getMessage());
-			}
-			
 		} catch (SQLException e) {
-			System.out.println("Connection error: " + e.getMessage());
-			e.printStackTrace();
-			throw e; // Re-throw to maintain original behavior
+			System.out.println(e.getMessage());
 		}
 
 		if (!mustCreateTables) {
@@ -325,8 +225,6 @@ public class DBManager {
 			System.out.println("Creating the DB file " + m_dbPath + " and the tables.");
 			createTables();
 		}
-		
-		System.out.println("===== End Database Initialization Debug =====");
 	}
 
 	/**

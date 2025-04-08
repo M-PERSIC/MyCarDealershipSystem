@@ -66,10 +66,29 @@ The Car Dealership Management System is a Java-based application that provides a
    ```
 
 ### Setup on Windows
-```bash
-java -cp bin;libs/sqlite-jdbc-3.49.1.0.jar carDealership.Main
-```
-For more details on Windows setup, see [WINDOWS_FIX.md](WINDOWS_FIX.md).
+1. Open Command Prompt or PowerShell in the project root directory
+
+2. Create bin directory if it doesn't exist
+   ```
+   mkdir bin
+   ```
+
+3. Compile the application
+   ```
+   javac -cp ".;libs\sqlite-jdbc-3.49.1.0.jar" -d bin src\carDealership\*.java src\persistance\*.java
+   ```
+
+4. Run the application
+   ```
+   java -cp "bin;libs\sqlite-jdbc-3.49.1.0.jar" carDealership.Main
+   ```
+
+5. If the application shows the Dealership Setup screen instead of the login screen,
+   you need to run the setup script to create a dealership:
+   ```
+   sqlite3 dealership.sqlite3 < setup_dealership.sql
+   ```
+   Then restart the application.
 
 ## Team Members
 
