@@ -37,11 +37,19 @@ public class DBManager {
 	 * @throws SQLException if a database access error occurs
 	 */
 	private DBManager() throws SQLException {
-		// Use the local database file instead of home directory
-		m_dbPath = "dealership.sqlite3";
+		// Use an absolute path for cross-platform compatibility
+		try {
+			// Get the application's root directory
+			File currentDir = new File(System.getProperty("user.dir"));
+			m_dbPath = new File(currentDir, "dealership.sqlite3").getAbsolutePath();
+		} catch (Exception e) {
+			// Fallback to relative path if there's an error
+			m_dbPath = "dealership.sqlite3";
+			System.out.println("Warning: Using fallback relative path due to: " + e.getMessage());
+		}
 		
 		// Print the absolute path for debugging
-		System.out.println("Database path: " + new File(m_dbPath).getAbsolutePath());
+		System.out.println("Database path: " + m_dbPath);
 
 		initDB();
 	}
