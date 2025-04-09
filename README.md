@@ -92,17 +92,12 @@ The Car Dealership Management System is a Java-based application that provides a
 
 ## Team Members
 
-Code contributions from:
-
 - Nazim Chaib Cherif-Baza (nbazc)
-- [Andrea Delgado Anderson](https://github.com/andremagda)
-- [Ronika Patel](https://github.com/RonikaP)
-- [Michael Persico](https://github.com/M-PERSIC)
-
-With input from:
-
+- Andrea Delgado Anderson
+- Ronika Patel
 - Grace Pan
 - Bao Tran Nguyen
+- Michael Persico
 
 Based on the work of previous members:
 
